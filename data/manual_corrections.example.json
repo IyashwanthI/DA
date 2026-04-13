@@ -1,0 +1,15 @@
+[
+  {
+    "comment": "Example: fix structural self-loop (narcolepsy, hasSymptom, narcolepsy) from healthcare.owl",
+    "original": {
+      "subject": "narcolepsy",
+      "relation": "hasSymptom",
+      "object": "narcolepsy"
+    },
+    "final": {
+      "subject": "narcolepsy",
+      "relation": "hasSymptom",
+      "object": "fever"
+    }
+  }
+]

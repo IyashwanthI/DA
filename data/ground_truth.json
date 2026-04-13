@@ -1,0 +1,18 @@
+[
+  {
+    "symptoms": ["fever", "diarrhea", "abdominal pain"],
+    "gold_disease": "ulcerative_colitis"
+  },
+  {
+    "symptoms": ["headache", "nausea", "vertigo"],
+    "gold_disease": "brain_cancer"
+  },
+  {
+    "symptoms": ["cough", "chest pain", "dyspnea"],
+    "gold_disease": "thymus_cancer"
+  },
+  {
+    "symptoms": ["coma", "confusion", "tinnitus"],
+    "gold_disease": "intracranial_aneurysm"
+  }
+]

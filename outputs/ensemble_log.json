@@ -1,0 +1,80 @@
+[
+  {
+    "original": {
+      "subject": "http://healthcarekg.org/ontology/restless_legs_syndrome",
+      "relation": "hasSymptom",
+      "object": "http://healthcarekg.org/ontology/restless_legs_syndrome"
+    },
+    "status": "skipped_no_apis",
+    "accepted_correction": null,
+    "votes": {},
+    "verdicts": [
+      {
+        "provider": "claude",
+        "valid": null,
+        "corrected_triple": null,
+        "confidence": null,
+        "parsed": {
+          "skipped": "no ANTHROPIC_API_KEY"
+        }
+      },
+      {
+        "provider": "openai",
+        "valid": null,
+        "corrected_triple": null,
+        "confidence": null,
+        "parsed": {
+          "skipped": "no OPENAI_API_KEY"
+        }
+      },
+      {
+        "provider": "gemini",
+        "valid": null,
+        "corrected_triple": null,
+        "confidence": null,
+        "parsed": {
+          "skipped": "no GOOGLE_API_KEY"
+        }
+      }
+    ]
+  },
+  {
+    "original": {
+      "subject": "http://healthcarekg.org/ontology/obesity",
+      "relation": "hasSymptom",
+      "object": "http://healthcarekg.org/ontology/obesity"
+    },
+    "status": "skipped_no_apis",
+    "accepted_correction": null,
+    "votes": {},
+    "verdicts": [
+      {
+        "provider": "claude",
+        "valid": null,
+        "corrected_triple": null,
+        "confidence": null,
+        "parsed": {
+          "skipped": "no ANTHROPIC_API_KEY"
+        }
+      },
+      {
+        "provider": "openai",
+        "valid": null,
+        "corrected_triple": null,
+        "confidence": null,
+        "parsed": {
+          "skipped": "no OPENAI_API_KEY"
+        }
+      },
+      {
+        "provider": "gemini",
+        "valid": null,
+        "corrected_triple": null,
+        "confidence": null,
+        "parsed": {
+          "skipped": "no GOOGLE_API_KEY"
+        }
+      }
+    ]
+  }
+]
