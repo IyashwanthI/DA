@@ -2,18 +2,21 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-
+import csv
 import typer
 from dotenv import load_dotenv
 from rich.console import Console
 from rich.table import Table
 
+from healthcare_kg.loader import local_name
 from healthcare_kg.corrections import apply_ensemble_to_rdf, rebuild_snapshot_from_rdf, save_rdf
 from healthcare_kg.errors import detect_errors, errors_to_suspicious_triples
 from healthcare_kg.explain import explain_with_claude
 from healthcare_kg.loader import KGSnapshot, load_owl
 from healthcare_kg.llm_ensemble import ensemble_triple
 from healthcare_kg.metrics import EvalExample, evaluate
+from healthcare_kg.metrics_hckg import evaluatehckg
+from healthcare_kg.metrics_healthcare import evaluatehealthcare
 from healthcare_kg.models import CorrectionRecord, EnsembleResult
 from healthcare_kg.predict import predict_diseases
 from healthcare_kg.manual import apply_manual_edits_file
@@ -30,6 +33,74 @@ load_dotenv()
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 console = Console()
 
+def export_errors_to_csv(errors: list[DetectedError], filepath: str = "outputs/manual_review.csv") -> None:
+    """Exports detected errors to a CSV for easy manual review in Excel/Sheets."""
+    
+    with open(filepath, mode="w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        
+        # Write the header row
+        writer.writerow([
+            "Error Category", 
+            "Error Code", 
+            "Message", 
+            "Triple Subject", 
+            "Triple Relation", 
+            "Triple Object", 
+            "Orphan/Missing Node"
+        ])
+        
+        for e in errors:
+            # Extract triple data if it exists (for structural/semantic errors)
+            subj = local_name(e.triple.subject) if e.triple else ""
+            rel = e.triple.relation if e.triple else ""
+            obj = local_name(e.triple.object) if e.triple else ""
+            
+            # Extract node data if it exists (for missing/orphan errors)
+            node = local_name(e.nodes[0]) if e.nodes else ""
+            
+            writer.writerow([
+                e.kind.upper(),
+                e.code,
+                e.message,
+                subj,
+                rel,
+                obj,
+                node
+            ])
+            
+    print(f"✅ Exported {len(errors)} errors to {filepath} for manual review.")
+def export_errors_to_json(errors: list[DetectedError], filepath: str = "outputs/manual_review.json") -> None:
+    """Exports detected errors to a JSON file for structured inspection."""
+
+    data = []
+
+    for e in errors:
+        # Extract triple data
+        subj = local_name(e.triple.subject) if e.triple else None
+        rel = e.triple.relation if e.triple else None
+        obj = local_name(e.triple.object) if e.triple else None
+
+        # Extract node data
+        node = local_name(e.nodes[0]) if e.nodes else None
+
+        data.append({
+            "error_category": e.kind.upper(),
+            "error_code": e.code,
+            "message": e.message,
+            "triple": {
+                "subject": subj,
+                "relation": rel,
+                "object": obj
+            } if e.triple else None,
+            "node": node
+        })
+
+    # Write JSON file
+    with open(filepath, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=4, ensure_ascii=False)
+
+    print(f"✅ Exported {len(errors)} errors to {filepath} for manual review.")
 
 def _default_owl() -> Path:
     return Path(__file__).resolve().parents[2] / "healthcare.owl"
@@ -47,6 +118,8 @@ def cmd_detect(
     """Phase 1: rule-based error detection (baseline)."""
     kg = load_owl(owl)
     errors = detect_errors(kg)
+    export_errors_to_csv(errors, "outputs/data_correction_sheet.csv")
+    export_errors_to_json(errors, "outputs/data_correction_sheet.json")
     write_pre_correction_report(errors, out)
     console.print(f"[green]Wrote[/green] {out} ({len(errors)} issues)")
     by_kind: dict[str, int] = {}
@@ -214,7 +287,10 @@ def cmd_evaluate(
     examples = [
         EvalExample(symptoms=row["symptoms"], gold_disease_iri=row["gold_disease"]) for row in raw
     ]
-    report = evaluate(kg, examples, top_k=top_k)
+    if "hckg" in owl.name:
+        report = evaluatehckg(kg, examples, top_k=top_k)
+    else:
+        report = evaluatehealthcare(kg, examples, top_k=top_k)
     write_metrics_table(report, out)
     console.print_json(data={
         "micro_precision": report.precision_micro,

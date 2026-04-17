@@ -15,6 +15,8 @@ OWL_THING = URIRef("http://www.w3.org/2002/07/owl#Thing")
 CLINICAL_RELATIONS = {
     EX.hasSymptom: "hasSymptom",
     EX.treatedBy: "treatedBy",
+    EX.isSymptomOf: "isSymptomOf", 
+    EX.treats: "treats",
 }
 
 ENTITY_TYPES = ("Disease", "Symptom", "Drug")

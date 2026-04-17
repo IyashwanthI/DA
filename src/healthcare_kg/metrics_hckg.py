@@ -86,7 +86,7 @@ def _binary_entropy(p: float) -> float:
     return -(p * math.log2(p) + (1 - p) * math.log2(1 - p))
 
 
-def evaluate(
+def evaluatehckg(
     kg: KGSnapshot,
     examples: list[EvalExample],
     top_k: int = 5,

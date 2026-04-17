@@ -5,7 +5,7 @@ import os
 import re
 from collections import Counter
 from typing import Any
-
+import time
 import httpx
 
 from healthcare_kg.loader import EX, local_name
@@ -61,39 +61,6 @@ def _iri_for_local(part: str) -> str:
     return str(EX[part])
 
 
-def call_claude(user_prompt: str) -> LLMVerdict:
-    key = _env("ANTHROPIC_API_KEY")
-    model = _env("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022")
-    if not key:
-        return LLMVerdict(
-            provider="claude",
-            raw_text="",
-            valid=None,
-            corrected_triple=None,
-            confidence=None,
-            parsed={"skipped": "no ANTHROPIC_API_KEY"},
-        )
-    payload = {
-        "model": model,
-        "max_tokens": 512,
-        "messages": [
-            {"role": "user", "content": f"{SYSTEM}\n\n{user_prompt}"},
-        ],
-    }
-    with httpx.Client(timeout=120.0) as client:
-        r = client.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={
-                "x-api-key": key,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            },
-            json=payload,
-        )
-        r.raise_for_status()
-        data = r.json()
-    text = "".join(b.get("text", "") for b in data.get("content", []) if isinstance(b, dict))
-    return _parse_verdict("claude", text)
 
 
 def call_openai(user_prompt: str) -> LLMVerdict:
@@ -108,6 +75,7 @@ def call_openai(user_prompt: str) -> LLMVerdict:
             confidence=None,
             parsed={"skipped": "no OPENAI_API_KEY"},
         )
+        
     payload = {
         "model": model,
         "temperature": 0.3,
@@ -117,20 +85,102 @@ def call_openai(user_prompt: str) -> LLMVerdict:
         ],
     }
     with httpx.Client(timeout=120.0) as client:
-        r = client.post(
-            "https://api.openai.com/v1/chat/completions",
-            headers={"Authorization": f"Bearer {key}"},
-            json=payload,
+        max_retries = 5
+        for attempt in range(max_retries):
+            r = client.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={"Authorization": f"Bearer {key}"},
+                json=payload,
+            )
+            
+            # Handle rate limiting with exponential backoff
+            if r.status_code == 429:
+                wait_time = 2 ** attempt  # 1s, 2s, 4s, 8s, 16s
+                print(f"[OpenAI] Rate limited. Retrying in {wait_time}s (Attempt {attempt + 1}/{max_retries})...")
+                time.sleep(wait_time)
+                continue
+                
+            # For any other HTTP errors, raise the exception
+            r.raise_for_status()
+            
+            data = r.json()
+            text = data["choices"][0]["message"]["content"]
+            return _parse_verdict("openai", text)
+            print(text)
+        # If we exhaust all 5 retries, return a failed verdict instead of crashing
+        return LLMVerdict(
+            provider="openai",
+            raw_text="",
+            valid=None,
+            corrected_triple=None,
+            confidence=None,
+            parsed={"parse_error": "Exhausted retries due to 429 Rate Limit"},
         )
-        r.raise_for_status()
-        data = r.json()
-    text = data["choices"][0]["message"]["content"]
-    return _parse_verdict("openai", text)
+
+
+def call_claude(user_prompt: str) -> LLMVerdict:
+    key = _env("ANTHROPIC_API_KEY")
+    model = _env("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022")
+    if not key:
+        return LLMVerdict(
+            provider="claude",
+            raw_text="",
+            valid=None,
+            corrected_triple=None,
+            confidence=None,
+            parsed={"skipped": "no ANTHROPIC_API_KEY"},
+        )
+        
+    payload = {
+        "model": model,
+        "max_tokens": 512,
+        "messages": [
+            {"role": "user", "content": f"{SYSTEM}\n\n{user_prompt}"},
+        ],
+    }
+    
+    with httpx.Client(timeout=120.0) as client:
+        max_retries = 5
+        for attempt in range(max_retries):
+            r = client.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "x-api-key": key,
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json",
+                },
+                json=payload,
+            )
+            
+            # Handle rate limiting with exponential backoff
+            if r.status_code == 429:
+                wait_time = 2 ** attempt
+                print(f"[Claude] Rate limited. Retrying in {wait_time}s (Attempt {attempt + 1}/{max_retries})...")
+                time.sleep(wait_time)
+                continue
+                
+            # For any other HTTP errors, raise the exception
+            r.raise_for_status()
+            
+            data = r.json()
+            text = "".join(b.get("text", "") for b in data.get("content", []) if isinstance(b, dict))
+            print(text)
+            return _parse_verdict("claude", text)
+            
+        # If we exhaust all retries
+        return LLMVerdict(
+            provider="claude",
+            raw_text="",
+            valid=None,
+            corrected_triple=None,
+            confidence=None,
+            parsed={"parse_error": "Exhausted retries due to 429 Rate Limit"},
+        )
 
 
 def call_gemini(user_prompt: str) -> LLMVerdict:
     key = _env("GOOGLE_API_KEY")
-    model = _env("GOOGLE_MODEL", "gemini-1.5-flash")
+    model = _env("GOOGLE_MODEL", "gemini-2.5-flash")
     if not key:
         return LLMVerdict(
             provider="gemini",
@@ -140,19 +190,43 @@ def call_gemini(user_prompt: str) -> LLMVerdict:
             confidence=None,
             parsed={"skipped": "no GOOGLE_API_KEY"},
         )
+        
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
     payload = {
         "contents": [{"parts": [{"text": f"{SYSTEM}\n\n{user_prompt}"}]}],
         "generationConfig": {"temperature": 0.4},
     }
+    
     with httpx.Client(timeout=120.0) as client:
-        r = client.post(url, params={"key": key}, json=payload)
-        r.raise_for_status()
-        data = r.json()
-    parts = data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
-    text = "".join(p.get("text", "") for p in parts if isinstance(p, dict))
-    return _parse_verdict("gemini", text)
-
+        max_retries = 5
+        for attempt in range(max_retries):
+            r = client.post(url, params={"key": key}, json=payload)
+            
+            # Handle rate limiting with exponential backoff
+            if r.status_code == 429:
+                wait_time = 2 ** attempt
+                print(f"[Gemini] Rate limited. Retrying in {wait_time}s (Attempt {attempt + 1}/{max_retries})...")
+                time.sleep(wait_time)
+                continue
+                
+            # For any other HTTP errors, raise the exception
+            r.raise_for_status()
+            
+            data = r.json()
+            parts = data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+            text = "".join(p.get("text", "") for p in parts if isinstance(p, dict))
+            print(text)
+            return _parse_verdict("gemini", text)
+            
+        # If we exhaust all retries
+        return LLMVerdict(
+            provider="gemini",
+            raw_text="",
+            valid=None,
+            corrected_triple=None,
+            confidence=None,
+            parsed={"parse_error": "Exhausted retries due to 429 Rate Limit"},
+        )
 
 def _parse_verdict(provider: str, text: str) -> LLMVerdict:
     try:
@@ -201,7 +275,6 @@ def ensemble_triple(t: Triple) -> EnsembleResult:
             status="skipped_no_apis",
             votes={},
         )
-
     valid_votes = sum(1 for v in active if v.valid is True)
     invalid_votes = sum(1 for v in active if v.valid is False)
 

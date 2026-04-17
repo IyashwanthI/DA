@@ -40,4 +40,5 @@ def explain_with_claude(
         )
         r.raise_for_status()
         data = r.json()
+    print(data)
     return "".join(b.get("text", "") for b in data.get("content", []) if isinstance(b, dict))
