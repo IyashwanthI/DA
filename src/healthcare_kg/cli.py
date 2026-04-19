@@ -1,3 +1,5 @@
+﻿"""Typer CLI for detection, correction, prediction, and evaluation workflows."""
+
 from __future__ import annotations
 
 import json
@@ -8,10 +10,15 @@ from dotenv import load_dotenv
 from rich.console import Console
 from rich.table import Table
 
-from healthcare_kg.loader import local_name
+from healthcare_kg.graph_viz import write_disease_subgraph_html
+from healthcare_kg.loader import (
+    disease_seeded_clinical_subgraph,
+    local_name,
+    subgraph_to_elements_json,
+)
 from healthcare_kg.corrections import apply_ensemble_to_rdf, rebuild_snapshot_from_rdf, save_rdf
 from healthcare_kg.errors import detect_errors, errors_to_suspicious_triples
-from healthcare_kg.explain import explain_with_claude
+from healthcare_kg.explain import explain_with_gemini
 from healthcare_kg.loader import KGSnapshot, load_owl
 from healthcare_kg.llm_ensemble import ensemble_triple
 from healthcare_kg.metrics import EvalExample, evaluate
@@ -106,6 +113,10 @@ def _default_owl() -> Path:
     return Path(__file__).resolve().parents[2] / "healthcare.owl"
 
 
+def _default_hckg_owl() -> Path:
+    return Path(__file__).resolve().parents[2] / "hckg.owl"
+
+
 @app.command("detect")
 def cmd_detect(
     owl: Path = typer.Option(_default_owl, "--owl", help="Path to healthcare.owl"),
@@ -196,7 +207,7 @@ def cmd_predict(
         help="Use corrected TTL from Phase 2 instead of original OWL",
     ),
     top_k: int = typer.Option(10, "--top-k"),
-    explain: bool = typer.Option(False, "--explain", help="Optional Claude rationale for top candidates"),
+    explain: bool = typer.Option(False, "--explain", help="Optional Gemini rationale for top candidates"),
 ) -> None:
     """Phase 3: symptom → ranked diseases (multi-hop + Jaccard scoring)."""
     kg = _load_kg(owl, corrected)
@@ -223,7 +234,7 @@ def cmd_predict(
     console.print(table)
     if explain and preds:
         console.print("[bold]LLM note[/bold]")
-        console.print(explain_with_claude(sym_list, preds))
+        console.print(explain_with_gemini(sym_list, preds))
 
 
 @app.command("apply-manual")
@@ -244,6 +255,52 @@ def cmd_apply_manual(
     """Apply domain-expert manual triple edits to a copy of the OWL-derived graph."""
     apply_manual_edits_file(owl, edits, out_ttl, diff_append)
     console.print(f"[green]Wrote[/green] {out_ttl}")
+
+
+@app.command("export-disease-subgraph")
+def cmd_export_disease_subgraph(
+    owl: Path = typer.Option(_default_hckg_owl, "--owl", help="Path to hckg.owl"),
+    out: Path = typer.Option(
+        Path("outputs/hckg_disease_subgraph.json"),
+        "--out",
+        help="Cytoscape-style JSON (nodes + edges)",
+    ),
+    n_diseases: int = typer.Option(
+        20,
+        "--n-diseases",
+        help="Number of seed diseases (sorted IRI, first N)",
+    ),
+    html_out: Path | None = typer.Option(
+        None,
+        "--html-out",
+        help="Standalone vis-network HTML (default: same stem as --out + _viz.html)",
+    ),
+) -> None:
+    """Build a subgraph: N seed diseases expanded only via hasSymptom and treatedBy."""
+    kg = load_owl(owl)
+    sub = disease_seeded_clinical_subgraph(kg, n_diseases=n_diseases)
+    payload = subgraph_to_elements_json(sub)
+    payload["meta"] = {
+        "owl": str(owl.resolve()),
+        "n_seed_diseases": n_diseases,
+        "node_count": sub.number_of_nodes(),
+        "edge_count": sub.number_of_edges(),
+        "relations": ["hasSymptom", "treatedBy"],
+    }
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    viz_path = html_out if html_out is not None else out.with_name(f"{out.stem}_viz.html")
+    write_disease_subgraph_html(payload, viz_path)
+    by_type: dict[str, int] = {}
+    for _, attr in sub.nodes(data=True):
+        t = attr.get("node_type", "?")
+        by_type[t] = by_type.get(t, 0) + 1
+    console.print(f"[green]Wrote[/green] {out}")
+    console.print(f"[green]Wrote[/green] {viz_path} (open in a browser)")
+    console.print(f"Nodes by type: {by_type}")
+    console.print(
+        f"Edges: {sub.number_of_edges()} (hasSymptom / treatedBy from {n_diseases} seed diseases)"
+    )
 
 
 @app.command("export-edges")
@@ -280,6 +337,7 @@ def cmd_evaluate(
     ),
     out: Path = typer.Option(Path("outputs/metrics.json"), "--out"),
     top_k: int = typer.Option(20, "--top-k"),
+    datatype: str = typer.Option("ID", "--datatype")
 ) -> None:
     """Phase 4–5: metrics vs ground truth + random baseline."""
     kg = _load_kg(owl, corrected)
@@ -287,7 +345,7 @@ def cmd_evaluate(
     examples = [
         EvalExample(symptoms=row["symptoms"], gold_disease_iri=row["gold_disease"]) for row in raw
     ]
-    if "hckg" in owl.name:
+    if datatype == "ID":
         report = evaluatehckg(kg, examples, top_k=top_k)
     else:
         report = evaluatehealthcare(kg, examples, top_k=top_k)
@@ -362,3 +420,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

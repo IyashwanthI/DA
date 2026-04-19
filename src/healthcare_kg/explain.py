@@ -1,19 +1,23 @@
+﻿"""LLM explanation helpers for summarizing top prediction rationale."""
+
 from __future__ import annotations
 
 import os
+import time
 
 import httpx
 
 from healthcare_kg.models import DiseasePrediction
+def _env(name: str, default: str | None = None) -> str | None:
+    v = os.environ.get(name, "").strip()
+    return v or default
 
-
-def explain_with_claude(
+def explain_with_gemini(
     symptoms: list[str],
     predictions: list[DiseasePrediction],
 ) -> str:
-    key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
-    if not key:
-        return "Set ANTHROPIC_API_KEY to enable LLM explanation."
+    key = "AIzaSyBI3ZfzZPe4vuvWYFMXdWFrQ05rzletfJ0"
+    model = "gemini-2.5-flash"
     lines = [
         f"{i+1}. {p.disease_label} (score={p.score}, jaccard={p.jaccard}, tier={p.hop_tier})"
         for i, p in enumerate(predictions[:5])
@@ -23,22 +27,34 @@ def explain_with_claude(
         f"Top KG-ranked diseases:\n" + "\n".join(lines) + "\n"
         "Which single diagnosis is most plausible and why? Answer in 3–5 sentences."
     )
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
     payload = {
-        "model": os.environ.get("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022"),
-        "max_tokens": 400,
-        "messages": [{"role": "user", "content": user}],
+        "contents": [{"parts": [{"text": user}]}],
+        "generationConfig": {"temperature": 0.4},
     }
     with httpx.Client(timeout=120.0) as client:
-        r = client.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={
-                "x-api-key": key,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            },
-            json=payload,
-        )
-        r.raise_for_status()
-        data = r.json()
-    print(data)
-    return "".join(b.get("text", "") for b in data.get("content", []) if isinstance(b, dict))
+        max_retries = 5
+        for attempt in range(max_retries):
+            r = client.post(url, params={"key": key}, json=payload)
+
+            # Retry with exponential backoff on API rate limits.
+            if r.status_code == 429:
+                wait_time = 2 ** attempt
+                time.sleep(wait_time)
+                continue
+
+            r.raise_for_status()
+            data = r.json()
+            parts = data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+            return "".join(p.get("text", "") for p in parts if isinstance(p, dict))
+
+        return "Gemini API rate limit reached repeatedly. Please retry in a few moments."
+
+
+def explain_with_claude(
+    symptoms: list[str],
+    predictions: list[DiseasePrediction],
+) -> str:
+    """Backward compatible alias; now uses Gemini."""
+    return explain_with_gemini(symptoms, predictions)
+

@@ -22,6 +22,7 @@ build-backend = "setuptools.build_meta"
 
 [project.optional-dependencies]
 ui = ["streamlit>=1.28.0"]
+gnn = ["torch", "torch-geometric"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

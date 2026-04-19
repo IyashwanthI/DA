@@ -1,3 +1,5 @@
+﻿"""Symptom-to-disease ranking logic using graph traversal and overlap scoring."""
+
 from __future__ import annotations
 import re
 from healthcare_kg.loader import KGSnapshot, local_name
@@ -45,7 +47,7 @@ def disease_symptoms(kg: KGSnapshot, disease_iri: str) -> set[str]:
 def predict_diseases(
     kg: KGSnapshot,
     symptom_inputs: list[str],
-    top_k: int = 10,
+    top_k: int = 20,
     hop2_penalty: float = 0.55,
     jaccard_weight: float = 0.65,
     coverage_weight: float = 0.35,

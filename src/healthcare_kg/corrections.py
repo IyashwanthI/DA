@@ -1,3 +1,5 @@
+﻿"""Utilities to apply accepted corrections directly to RDF graphs."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -114,3 +116,4 @@ def save_rdf(g: Graph, path: str | Path, fmt: str = "turtle") -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     g.serialize(destination=path.as_posix(), format=fmt)
+

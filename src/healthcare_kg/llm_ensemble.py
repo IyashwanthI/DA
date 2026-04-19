@@ -1,3 +1,5 @@
+﻿"""LLM ensemble orchestration and verdict aggregation for triple validation."""
+
 from __future__ import annotations
 
 import json
@@ -23,6 +25,14 @@ SYSTEM = (
 def _env(name: str, default: str | None = None) -> str | None:
     v = os.environ.get(name, "").strip()
     return v or default
+
+
+def _looks_like_openai_key(key: str) -> bool:
+    return key.startswith("sk-")
+
+
+def _is_gemini_model_name(model: str) -> bool:
+    return model.startswith("gemini")
 
 
 def _extract_json_object(text: str) -> dict[str, Any]:
@@ -190,6 +200,24 @@ def call_gemini(user_prompt: str) -> LLMVerdict:
             confidence=None,
             parsed={"skipped": "no GOOGLE_API_KEY"},
         )
+    if _looks_like_openai_key(key):
+        return LLMVerdict(
+            provider="gemini",
+            raw_text="",
+            valid=None,
+            corrected_triple=None,
+            confidence=None,
+            parsed={"skipped": "GOOGLE_API_KEY appears to be an OpenAI key"},
+        )
+    if not _is_gemini_model_name(model):
+        return LLMVerdict(
+            provider="gemini",
+            raw_text="",
+            valid=None,
+            corrected_triple=None,
+            confidence=None,
+            parsed={"skipped": f"invalid GOOGLE_MODEL for Gemini endpoint: {model}"},
+        )
         
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
     payload = {
@@ -324,3 +352,4 @@ def ensemble_triple(t: Triple) -> EnsembleResult:
 def corrected_triple_to_rdf_triple(ct: tuple[str, str, str]) -> Triple:
     s, rel, o = ct
     return Triple(_iri_for_local(s), rel, _iri_for_local(o))
+

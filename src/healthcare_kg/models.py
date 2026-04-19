@@ -1,3 +1,5 @@
+﻿"""Shared dataclasses used across detection, correction, and prediction flows."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -64,3 +66,11 @@ class DiseasePrediction:
     jaccard: float
     hop_tier: int
     matched_symptoms: list[str]
+
+
+@dataclass
+class DrugRecommendation:
+    drug_iri: str
+    drug_label: str
+    score: float
+

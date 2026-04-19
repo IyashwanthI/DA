@@ -54,9 +54,9 @@ Copy `.env.example` to `.env` and set keys if you use `correct` or `predict --ex
 
 | Variable | Purpose |
 |----------|---------|
-| `ANTHROPIC_API_KEY` | Claude (`correct`, `--explain`) |
+| `ANTHROPIC_API_KEY` | Claude (`correct` ensemble only) |
 | `OPENAI_API_KEY` | GPT-style model in ensemble |
-| `GOOGLE_API_KEY` | Gemini in ensemble |
+| `GOOGLE_API_KEY` | Gemini in ensemble and `--explain` |
 | `ANTHROPIC_MODEL`, `OPENAI_MODEL`, `GOOGLE_MODEL` | Optional overrides |
 
 Without keys, ensemble calls **skip** live APIs (logged in `ensemble_log.json`).
@@ -156,7 +156,7 @@ DA-PROJECT/
     ├── predict.py              # Phase 3 ranking
     ├── metrics.py              # Phase 4 evaluation + random baseline
     ├── reporting.py            # JSON writers (errors, diff, metrics, review queue)
-    ├── explain.py              # Optional Claude explanation for top hits
+    ├── explain.py              # Optional Gemini explanation for top hits
     ├── models.py               # Dataclasses (triples, errors, predictions)
     └── streamlit_app.py        # Optional web UI
 ```

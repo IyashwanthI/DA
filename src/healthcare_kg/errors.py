@@ -1,3 +1,5 @@
+﻿"""Rule-based error detectors for structural, semantic, and missing issues."""
+
 from __future__ import annotations
 
 from collections import defaultdict
@@ -206,3 +208,4 @@ def errors_to_suspicious_triples(errors: list[DetectedError]) -> list[Triple]:
         seen.add(key)
         out.append(e.triple)
     return out
+

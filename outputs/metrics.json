@@ -1,28 +1,28 @@
 {
-  "micro_precision": 0.05,
+  "micro_precision": 0.06779661016949153,
   "micro_recall": 1.0,
-  "micro_f1": 0.09523809523809523,
-  "mrr": 0.4523809523809524,
-  "model_top1_entropy": 0.8112781244591328,
-  "random_precision_per_draw": 0.01,
-  "random_top1_entropy": 0.08079313589591118,
+  "micro_f1": 0.12698412698412698,
+  "mrr": 0.0,
+  "model_top1_entropy": 0.0,
+  "random_precision_per_draw": 0.0,
+  "random_top1_entropy": 0.0,
   "per_disease": {
-    "http://healthcarekg.org/ontology/ulcerative_colitis": {
+    "http://healthcarekg.org/ontology/disease_DOID_10941": {
       "precision": 1.0,
       "recall": 1.0,
       "f1": 1.0
     },
-    "http://healthcarekg.org/ontology/intracranial_aneurysm": {
-      "precision": 0.5,
+    "http://healthcarekg.org/ontology/disease_DOID_1319": {
+      "precision": 1.0,
       "recall": 1.0,
-      "f1": 0.6666666666666666
+      "f1": 1.0
     },
-    "http://healthcarekg.org/ontology/brain_cancer": {
-      "precision": 0.5,
+    "http://healthcarekg.org/ontology/disease_DOID_3277": {
+      "precision": 1.0,
       "recall": 1.0,
-      "f1": 0.6666666666666666
+      "f1": 1.0
     },
-    "http://healthcarekg.org/ontology/thymus_cancer": {
+    "http://healthcarekg.org/ontology/disease_DOID_8577": {
       "precision": 1.0,
       "recall": 1.0,
       "f1": 1.0

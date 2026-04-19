@@ -1,3 +1,5 @@
+﻿"""JSON reporting writers for errors, diffs, ensemble logs, and metrics."""
+
 from __future__ import annotations
 
 import json
@@ -126,3 +128,4 @@ def write_metrics_table(report: MetricReport, path: str | Path) -> None:
 
 def triple_from_dict(d: dict[str, Any]) -> Triple:
     return Triple(d["subject"], d["relation"], d["object"])
+

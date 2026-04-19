@@ -1,3 +1,5 @@
+﻿"""Variant metric pipeline for HCKG-specific evaluation inputs."""
+
 from __future__ import annotations
 
 import math
@@ -150,40 +152,7 @@ def evaluatehckg(
             
         fp += len(pred_set) - (1 if is_hit else 0)
         
-        # ... [Rest of your evaluate loop remains exactly the same] ...
-    for ex, gold_iri in resolved_examples:
-        ranked = predict_fn(kg=kg, symptom_inputs=ex.symptoms, top_k=top_k)
-        ranked_iris = [p.disease_iri for p in ranked]
-        pred_set = set(ranked_iris)
-        is_hit = gold_iri in pred_set
-        if is_hit:
-            tp += 1
-            per_tp[gold_iri] += 1
-        else:
-            fn += 1
-            per_fn[gold_iri] += 1
-        fp += len(pred_set) - (1 if is_hit else 0)
-        for d in pred_set:
-            if d == gold_iri:
-                continue
-            per_fp[d] += 1
-
-        rnk = _rank_of_gold(ranked_iris, gold_iri)
-        if rnk is not None:
-            rr_sum += 1.0 / rnk
-            n_mrr += 1
-        if ranked_iris and ranked_iris[0] == gold_iri:
-            top1_hits += 1
-
-        for _ in range(random_trials):
-            guess = rng.choice(all_diseases) if all_diseases else None
-            if guess is None:
-                continue
-            if guess == gold_iri:
-                random_tp += 1
-            if guess == gold_iri:
-                random_top1 += 1
-
+    
     n = len(resolved_examples)
     prec_denom = tp + fp
     rec_denom = tp + fn
@@ -223,3 +192,4 @@ def evaluatehckg(
         random_entropy=random_entropy,
         per_class=per_class,
     )
+

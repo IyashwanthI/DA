@@ -1,3 +1,5 @@
+﻿"""OWL loader and graph snapshot construction helpers."""
+
 from __future__ import annotations
 
 from collections import Counter
@@ -94,3 +96,71 @@ def clinical_triples_from_graph(g: nx.MultiDiGraph) -> list[Triple]:
         if rel:
             out.append(Triple(u, rel, v))
     return out
+
+
+def disease_seeded_clinical_subgraph(
+    snapshot: KGSnapshot,
+    n_diseases: int = 20,
+    *,
+    relations: frozenset[str] | None = None,
+) -> nx.MultiDiGraph:
+    """Subgraph over the first ``n_diseases`` diseases (IRIs sorted lexically).
+
+    Includes only outgoing edges from those diseases whose relation is in
+    ``relations`` (default: ``hasSymptom`` and ``treatedBy`` — the latter is the
+    disease→drug link named ``treatedBy`` in ``hckg.owl``).
+    """
+    rels = relations or frozenset({"hasSymptom", "treatedBy"})
+    disease_uris = sorted(uri for uri, t in snapshot.types.items() if t == "Disease")
+    seeds = disease_uris[: max(0, n_diseases)]
+    seed_set = set(seeds)
+    g = nx.MultiDiGraph()
+    for d in seeds:
+        g.add_node(
+            d,
+            node_type="Disease",
+            label=snapshot.labels.get(d, local_name(d)),
+        )
+    for u, v, key, data in snapshot.nx_graph.out_edges(seed_set, keys=True, data=True):
+        rel = data.get("relation")
+        if rel not in rels:
+            continue
+        nt = snapshot.types.get(v, "Unknown")
+        g.add_node(
+            v,
+            node_type=nt,
+            label=snapshot.labels.get(v, local_name(v)),
+        )
+        g.add_edge(u, v, key=key, relation=rel)
+    return g
+
+
+def subgraph_to_elements_json(g: nx.MultiDiGraph) -> dict:
+    """Cytoscape.js-style ``elements`` document (nodes + edges)."""
+    nodes: list[dict] = []
+    for n, attr in g.nodes(data=True):
+        nodes.append(
+            {
+                "data": {
+                    "id": n,
+                    "label": attr.get("label", local_name(n)),
+                    "type": attr.get("node_type", "?"),
+                }
+            }
+        )
+    edges: list[dict] = []
+    for u, v, key, data in g.edges(keys=True, data=True):
+        rel = data.get("relation", "")
+        eid = f"{u}|{rel}|{v}|{key}"
+        edges.append(
+            {
+                "data": {
+                    "id": eid,
+                    "source": u,
+                    "target": v,
+                    "label": rel,
+                }
+            }
+        )
+    return {"elements": {"nodes": nodes, "edges": edges}}
+

@@ -1,22 +1,18 @@
 {
-  "owl": "D:\\College\\DA-PROJECT\\healthcare.owl",
-  "clinical_edges": 4112,
-  "typed_entities": 2124,
-  "errors_by_kind": {
-    "structural": 1194,
-    "semantic": 71,
-    "missing": 27
-  },
+  "owl": "E:\\Projects\\DA\\hckg.owl",
+  "clinical_edges": 4103,
+  "typed_entities": 935,
+  "errors_by_kind": {},
   "artifacts": {
     "pre_correction_errors": "outputs\\pre_correction_errors.json",
     "metrics": "outputs\\metrics.json"
   },
   "metrics": {
-    "micro_precision": 0.05,
+    "micro_precision": 0.06779661016949153,
     "micro_recall": 1.0,
-    "micro_f1": 0.09523809523809523,
-    "mrr": 0.4523809523809524,
-    "model_top1_entropy": 0.8112781244591328,
+    "micro_f1": 0.12698412698412698,
+    "mrr": 0.6875,
+    "model_top1_entropy": 1.0,
     "random_precision_per_draw": 0.01,
     "random_top1_entropy": 0.08079313589591118
   }

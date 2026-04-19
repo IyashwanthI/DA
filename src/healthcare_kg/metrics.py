@@ -1,3 +1,5 @@
+﻿"""Evaluation metrics for disease prediction quality and baselines."""
+
 from __future__ import annotations
 
 import math
@@ -223,3 +225,4 @@ def evaluate(
         random_entropy=random_entropy,
         per_class=per_class,
     )
+

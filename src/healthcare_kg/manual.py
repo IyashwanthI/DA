@@ -1,8 +1,10 @@
+﻿"""Manual correction loader and applier for curated triple edits."""
+
 from __future__ import annotations
 
 import json
 from pathlib import Path
-
+import shutil   
 from healthcare_kg.corrections import add_triple_to_rdf, remove_triple_from_rdf, save_rdf
 from healthcare_kg.loader import EX, load_owl
 from healthcare_kg.models import CorrectionRecord, Triple
@@ -27,7 +29,11 @@ def apply_manual_edits_file(
 ) -> list[CorrectionRecord]:
     """
     Apply manual corrections from JSON. Each row:
-    {"original": {subject, relation, object}, "final": {subject, relation, object}}
+    {
+      "original": {subject, relation, object},
+      "final": {subject, relation, object},
+      "skip_if_missing": true  # optional, defaults to false
+    }
     IRIs or ontology local names (e.g. brain_cancer, headache).
     """
     owl_path = Path(owl_path)
@@ -49,8 +55,11 @@ def apply_manual_edits_file(
             continue
         orig = triple_from_spec(row["original"])
         fin = triple_from_spec(row["final"])
+        skip_if_missing = bool(row.get("skip_if_missing", False))
         removed = remove_triple_from_rdf(g, orig)
         if not removed:
+            if skip_if_missing:
+                continue
             raise ValueError(f"Edit {i}: original triple not in graph: {orig}")
         add_triple_to_rdf(g, fin)
         rec = CorrectionRecord(
@@ -71,7 +80,7 @@ def apply_manual_edits_file(
             }
         )
 
-    save_rdf(g, out_ttl)
+    g.serialize(destination=str(owl_path), format="pretty-xml")
     if diff_append is not None and diff_rows:
         p = Path(diff_append)
         existing: list = []
@@ -83,3 +92,4 @@ def apply_manual_edits_file(
         p.write_text(json.dumps(existing + diff_rows, indent=2), encoding="utf-8")
 
     return records
+
