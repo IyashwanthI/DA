@@ -16,7 +16,7 @@ def explain_with_gemini(
     symptoms: list[str],
     predictions: list[DiseasePrediction],
 ) -> str:
-    key = "AIzaSyBI3ZfzZPe4vuvWYFMXdWFrQ05rzletfJ0"
+    key = <"insert API HERE"
     model = "gemini-2.5-flash"
     lines = [
         f"{i+1}. {p.disease_label} (score={p.score}, jaccard={p.jaccard}, tier={p.hop_tier})"
